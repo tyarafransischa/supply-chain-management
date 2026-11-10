@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCM Analytics & Forecasting Platform | Gemini Style</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Plus Jakarta Sans / Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gemini-bg-main: #131314;
+            --gemini-bg-sidebar: #1e1f20;
+            --gemini-surface: #1e1f20;
+            --gemini-surface-variant: #282a2c;
+            --gemini-hover: #333538;
+            --gemini-border: rgba(255, 255, 255, 0.08);
+            --gemini-text: #e3e3e3;
+            --gemini-text-muted: #9aa0a6;
+            --gemini-blue: #8ab4f8;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--gemini-bg-main);
+            color: var(--gemini-text);
+        }
+
+        /* Gemini Card Style */
+        .gemini-card {
+            background-color: var(--gemini-surface);
+            border: 1px solid var(--gemini-border);
+            border-radius: 20px;
+        }
+        .gemini-card:hover {
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        /* Gemini Sidebar Transitions */
+        #sidebar {
+            width: 260px;
+            background-color: var(--gemini-bg-sidebar);
+            transition: width 0.22s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        #sidebar.collapsed {
+            width: 72px !important;
+        }
+
+        #sidebar.collapsed .sidebar-text,
+        #sidebar.collapsed .sidebar-header-title,
+        #sidebar.collapsed .sidebar-footer-text,
+        #sidebar.collapsed .pill-btn-text {
+            display: none !important;
+        }
+
+        #sidebar.collapsed .nav-pill {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            margin: 4px auto !important;
+            border-radius: 9999px !important;
+        }
+
+        #sidebar.collapsed .new-forecast-btn {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            margin: 0 auto !important;
+            border-radius: 9999px !important;
+        }
+
+        #sidebar.collapsed .sidebar-header-container {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        /* Tooltip hint on hover in collapsed mode */
+        .sidebar-tooltip {
+            position: relative;
+        }
+        #sidebar.collapsed .sidebar-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #282a2c;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            padding: 5px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        /* Inventory Tab Styles */
+        .inv-tab {
+            color: #9aa0a6;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            background: transparent;
+        }
+        .inv-tab:hover { color: #e3e3e3; background: rgba(255,255,255,0.04); }
+        .inv-tab-active {
+            color: #ffffff !important;
+            border-bottom: 2px solid #8ab4f8 !important;
+            background: transparent !important;
+        }
+
+        /* Gemini Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #333538;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #474a4d;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex overflow-x-hidden">
+
+    <!-- Mobile Overlay Backdrop -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-35 hidden transition-opacity lg:hidden"></div>
+
+    <!-- GEMINI STYLE SIDEBAR -->
+    <aside id="sidebar" class="border-r border-[#282a2c] flex flex-col justify-between shrink-0 h-screen sticky top-0 z-40 select-none">
+        <div class="p-3">
+            <div class="flex items-center gap-2 mb-4 h-12 px-1 sidebar-header-container">
+                <button onclick="toggleSidebar()" title="Buka / Tutup Sidebar"
+                        class="w-10 h-10 rounded-full hover:bg-[#282a2c] flex items-center justify-center text-[#c4c7c5] hover:text-white transition-colors cursor-pointer shrink-0">
+                    <i class="fa-solid fa-bars text-base"></i>
+                </button>
+
+                <div class="flex items-center gap-2 overflow-hidden sidebar-header-title">
+                    <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs shadow-md shadow-indigo-500/20 shrink-0">
+                        <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
+                    </div>
+                    <span class="text-sm font-bold text-white tracking-tight truncate">SCM Platform</span>
+                </div>
+            </div>           
+
+            <!-- Navigation Menu Items -->
+            <nav class="space-y-1">
+                <div class="px-3 py-1.5 text-[10px] font-semibold text-[#9aa0a6] uppercase tracking-wider sidebar-text">
+                    Modul Analisis
+                </div>
+
+                <!-- 1. Visualisasi Data Historis -->
+                <button onclick="switchView('historical')" id="btn-nav-historical"
+                        class="nav-pill sidebar-tooltip w-full flex items-center gap-3.5 px-4 py-2.5 rounded-full text-xs font-medium text-[#c4c7c5] hover:bg-[#282a2c] hover:text-white transition-colors text-left"
+                        data-tooltip="Visualisasi Data Historis">
+                    <i class="fa-solid fa-chart-pie text-sm text-cyan-400 shrink-0 w-5 text-center"></i>
+                    <span class="sidebar-text truncate">Visualisasi Historis</span>
+                </button>
+
+                <!-- 2. Forecasting -->
+                <button onclick="switchView('forecasting')" id="btn-nav-forecasting"
+                        class="nav-pill sidebar-tooltip w-full flex items-center gap-3.5 px-4 py-2.5 rounded-full text-xs font-semibold bg-[#282a2c] text-white shadow-sm transition-colors text-left ring-1 ring-white/10"
+                        data-tooltip="Forecasting (Aktif)">
+                    <i class="fa-solid fa-chart-line text-sm text-[#8ab4f8] shrink-0 w-5 text-center"></i>
+                    <div class="sidebar-text flex-1 flex items-center justify-between">
+                        <span class="truncate">Forecasting</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#8ab4f8] ml-1"></span>
+                    </div>
+                </button>
+
+                <!-- 3. Inventory Management -->
+                <button onclick="switchView('inventory')" id="btn-nav-inventory"
+                        class="nav-pill sidebar-tooltip w-full flex items-center gap-3.5 px-4 py-2.5 rounded-full text-xs font-medium text-[#c4c7c5] hover:bg-[#282a2c] hover:text-white transition-colors text-left"
+                        data-tooltip="Inventory Management">
+                    <i class="fa-solid fa-warehouse text-sm text-amber-400 shrink-0 w-5 text-center"></i>
+                    <span class="sidebar-text truncate">Inventory Management</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Gemini Style Bottom Status -->
+        <div class="p-3 border-t border-[#282a2c]">
+            <div class="sidebar-tooltip p-2 rounded-xl hover:bg-[#282a2c] transition-colors flex items-center gap-3 cursor-pointer"
+                 data-tooltip="Ridge Regression (α=1.0)">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500/20 to-indigo-500/20 text-[#c58af9] flex items-center justify-center shrink-0 border border-purple-500/30">
+                    <i class="fa-solid fa-microchip text-xs"></i>
+                </div>
+                <div class="sidebar-footer-text overflow-hidden">
+                    <div class="text-xs font-semibold text-white truncate">Ridge Regression</div>
+                    <div class="text-[10px] text-[#9aa0a6] truncate">&alpha;=1.0 &bull; IPYNB Model</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col min-w-0 min-h-screen bg-[#131314]">
+
+        <!-- Top Header Navigation -->
+        <header class="border-b border-[#282a2c] bg-[#131314]/90 backdrop-blur sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-3">
+                
+                <div class="flex items-center space-x-3">
+                    <!-- Mobile Hamburger -->
+                    <button onclick="toggleSidebar()" class="w-9 h-9 rounded-full bg-[#1e1f20] hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white flex items-center justify-center lg:hidden">
+                        <i class="fa-solid fa-bars text-sm"></i>
+                    </button>
+
+                    <div>
+                        <h1 id="pageTitle" class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                            Demand Forecasting Dashboard
+                            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-[#8ab4f8] border border-blue-500/20">Per Kategori per Store</span>
+                        </h1>
+                        <p id="pageSubtitle" class="text-xs text-[#9aa0a6] hidden sm:block">Model Ridge Regression SCM &bull; Proyeksi Masa Depan</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="downloadCSV()" id="topExportBtn"
+                            class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-full bg-[#1e1f20] hover:bg-[#282a2c] text-white border border-white/10 transition-all shadow-sm">
+                        <i class="fa-solid fa-download text-[#8ab4f8]"></i>
+                        <span>Export CSV</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW 1: FORECASTING -->
+        <main id="view-forecasting" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+            <!-- Control Card (Gemini Style) -->
+            <section class="gemini-card p-5 shadow-xl">
+                <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                    
+                    <!-- Inputs Group -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                        <!-- Start Date -->
+                        <div>
+                            <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5">
+                                <i class="fa-regular fa-calendar-plus text-[#8ab4f8] mr-1"></i> Tanggal Mulai Forecast
+                            </label>
+                            <input type="date" id="startDate" value="2024-02-01" min="2024-02-01" max="2030-12-31" style="color-scheme: dark;"
+                                   class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#8ab4f8] focus:border-[#8ab4f8] transition-all">
+                        </div>
+
+                        <!-- End Date -->
+                        <div>
+                            <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5">
+                                <i class="fa-regular fa-calendar-check text-[#c58af9] mr-1"></i> Tanggal Selesai Forecast
+                            </label>
+                            <input type="date" id="endDate" value="2024-07-31" min="2024-02-01" max="2030-12-31" style="color-scheme: dark;"
+                                   class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#c58af9] focus:border-[#c58af9] transition-all">
+                        </div>
+
+                        <!-- Store Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5">
+                                <i class="fa-solid fa-store text-emerald-400 mr-1"></i> Filter Toko (Store)
+                            </label>
+                            <select id="storeSelect"
+                                    class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all">
+                                <option value="ALL">Semua Toko (S001 - S005)</option>
+                                {% for s in stores %}
+                                <option value="{{ s }}">Store {{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Category Filter -->
+                        <div>
+                            <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5">
+                                <i class="fa-solid fa-layer-group text-amber-400 mr-1"></i> Filter Kategori
+                            </label>
+                            <select id="categorySelect"
+                                    class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all">
+                                <option value="ALL">Semua Kategori</option>
+                                {% for c in categories %}
+                                <option value="{{ c }}">{{ c }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex items-center">
+                        <button id="btnForecast" onclick="executeForecast()"
+                                class="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white font-semibold text-sm transition-all shadow-md cursor-pointer">
+                            <i id="btnIcon" class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Jalankan Forecast</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gemini Style Quick Preset Pills -->
+                <div class="mt-4 pt-4 border-t border-[#282a2c] flex flex-wrap items-center gap-2 text-xs">
+                    <span class="text-[#9aa0a6] font-medium mr-1"><i class="fa-solid fa-bolt text-yellow-400 mr-1"></i>Preset Proyeksi:</span>
+                    <button onclick="setPreset('2024-02', '2024-04')" class="px-3 py-1.5 rounded-full bg-[#282a2c] hover:bg-[#333538] text-white transition-all">
+                        3 Bulan (Feb - Apr 2024)
+                    </button>
+                    <button onclick="setPreset('2024-02', '2024-07')" class="px-3 py-1.5 rounded-full bg-[#282a2c] hover:bg-[#333538] text-white transition-all">
+                        6 Bulan (Feb - Jul 2024)
+                    </button>
+                    <button onclick="setPreset('2024-02', '2024-12')" class="px-3 py-1.5 rounded-full bg-[#282a2c] hover:bg-[#333538] text-white transition-all">
+                        Sepanjang 2024 (Feb - Des)
+                    </button>
+                    <button onclick="setPreset('2024-02', '2025-01')" class="px-3 py-1.5 rounded-full bg-[#282a2c] hover:bg-[#333538] text-white transition-all">
+                        1 Tahun Penuh (12 Bulan)
+                    </button>
+                </div>
+            </section>
+
+            <!-- KPI Cards Grid (Gemini Style) -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Total Forecast -->
+                <div class="gemini-card p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-[#9aa0a6]">Total Forecast Demand</span>
+                        <span class="w-8 h-8 rounded-full bg-blue-500/10 text-[#8ab4f8] flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                        </span>
+                    </div>
+                    <div id="kpiTotalForecast" class="text-2xl font-bold text-white tracking-tight">-</div>
+                    <div id="kpiMonthCount" class="text-xs text-[#9aa0a6] mt-1">Periode: - Bulan</div>
+                </div>
+
+                <!-- Average Monthly -->
+                <div class="gemini-card p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-[#9aa0a6]">Rata-rata per Bulan</span>
+                        <span class="w-8 h-8 rounded-full bg-purple-500/10 text-[#c58af9] flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </span>
+                    </div>
+                    <div id="kpiAvgMonthly" class="text-2xl font-bold text-white tracking-tight">-</div>
+                    <div class="text-xs text-[#9aa0a6] mt-1">Units Sold / Bulan</div>
+                </div>
+
+                <!-- Top Category -->
+                <div class="gemini-card p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-[#9aa0a6]">Kategori Demand Tertinggi</span>
+                        <span class="w-8 h-8 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-trophy"></i>
+                        </span>
+                    </div>
+                    <div id="kpiTopCategory" class="text-2xl font-bold text-amber-400 tracking-tight">-</div>
+                    <div class="text-xs text-[#9aa0a6] mt-1">Estimasi Volume Terbesar</div>
+                </div>
+
+                <!-- Top Store -->
+                <div class="gemini-card p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-[#9aa0a6]">Toko Demand Tertinggi</span>
+                        <span class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-shop"></i>
+                        </span>
+                    </div>
+                    <div id="kpiTopStore" class="text-2xl font-bold text-emerald-400 tracking-tight">-</div>
+                    <div class="text-xs text-[#9aa0a6] mt-1">Estimasi Penjualan Terbanyak</div>
+                </div>
+
+                <!-- Model Info -->
+                <div class="gemini-card p-4 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-[#9aa0a6]">Model Peramalan</span>
+                        <span class="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-microchip"></i>
+                        </span>
+                    </div>
+                    <div class="text-xl font-bold text-indigo-400 tracking-tight">Ridge Regresi</div>
+                    <div class="text-xs text-[#9aa0a6] mt-1">Sesuai file IPYNB (&alpha; = 1.0)</div>
+                </div>
+            </section>
+
+            <!-- Matriks Hasil: Forecast per Kategori per Store -->
+            <section class="gemini-card p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-table-cells text-[#8ab4f8]"></i>
+                            Hasil Forecast Demand: Per Kategori per Store
+                        </h2>
+                        <p class="text-xs text-[#9aa0a6]">Total akumulasi estimasi penjualan sesuai kombinasi Store dan Kategori produk.</p>
+                    </div>
+                    <span id="matrixRangeLabel" class="text-xs px-3 py-1 rounded-full bg-[#282a2c] text-[#e3e3e3] border border-white/5">
+                        Periode: -
+                    </span>
+                </div>
+
+                <!-- Grid Cards for Store-Category Matrix -->
+                <div id="matrixGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <!-- Dynamically populated -->
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Line Chart: Timeline Trend (Span 2 cols) -->
+                <div class="gemini-card p-5 lg:col-span-2 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-[#8ab4f8]"></i>
+                                Tren Proyeksi Penjualan Bulanan per Kategori
+                            </h2>
+                            <p class="text-xs text-[#9aa0a6]">Kurva estimasi permintaan unit masa depan per kategori</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-[320px] relative">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Category Comparison (1 col) -->
+                <div class="gemini-card p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-chart-column text-amber-400"></i>
+                                Proporsi Demand per Kategori
+                            </h2>
+                            <p class="text-xs text-[#9aa0a6]">Komparasi total unit forecast antar kategori</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-h-[320px] relative">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Table Section -->
+            <section class="gemini-card p-5 shadow-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-[#c58af9]"></i>
+                            Tabel Rincian Hasil Peramalan
+                        </h2>
+                        <p class="text-xs text-[#9aa0a6]">Detail data peramalan per periode bulan, store, kategori, dan seri produk</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-[#9aa0a6] text-xs"></i>
+                            <input type="text" id="tableSearch" placeholder="Cari store, kategori, produk..."
+                                   class="bg-[#131314] border border-[#333538] rounded-full pl-8 pr-4 py-1.5 text-xs text-white placeholder-[#9aa0a6] focus:outline-none focus:ring-1 focus:ring-[#8ab4f8] w-56">
+                        </div>
+                        <button onclick="downloadCSV()" class="px-4 py-1.5 text-xs font-medium rounded-full bg-[#282a2c] hover:bg-[#333538] text-white transition-all flex items-center gap-1.5 border border-white/5">
+                            <i class="fa-solid fa-download text-[#8ab4f8]"></i> Unduh CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto rounded-xl border border-[#282a2c] max-h-[460px] custom-scrollbar">
+                    <table class="w-full text-left text-xs text-[#e3e3e3]">
+                        <thead class="bg-[#18191b] text-[#9aa0a6] uppercase font-semibold text-[10px] tracking-wider sticky top-0 z-10 backdrop-blur border-b border-[#282a2c]">
+                            <tr>
+                                <th class="py-3 px-4">Periode</th>
+                                <th class="py-3 px-4">Store ID</th>
+                                <th class="py-3 px-4">Kategori</th>
+                                <th class="py-3 px-4">Produk ID</th>
+                                <th class="py-3 px-4 text-right">Forecast Demand (Units)</th>
+                                <th class="py-3 px-4 text-center">Model</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-[#282a2c]/60 font-mono">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-[#9aa0a6] mt-3 px-1">
+                    <span id="tableCountLabel">Menampilkan 0 baris</span>
+                    <span>Algoritma: <strong class="text-white">Ridge Regression (&alpha;=1.0)</strong></span>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- VIEW 2: VISUALISASI DATA HISTORIS -->
+        <main id="view-historical" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+            <!-- Filter -->
+            <section class="gemini-card p-5 shadow-xl">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5"><i class="fa-regular fa-calendar-plus text-[#8ab4f8] mr-1"></i> Tanggal Mulai</label>
+                        <input type="date" id="hStart" value="2022-01-01" min="2022-01-01" max="2024-01-30" style="color-scheme: dark;"
+                               class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#8ab4f8]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5"><i class="fa-regular fa-calendar-check text-[#c58af9] mr-1"></i> Tanggal Selesai</label>
+                        <input type="date" id="hEnd" value="2024-01-30" min="2022-01-01" max="2024-01-30" style="color-scheme: dark;"
+                               class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#8ab4f8]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5"><i class="fa-solid fa-store text-emerald-400 mr-1"></i> Toko</label>
+                        <select id="hStore" class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#8ab4f8]">
+                            <option value="ALL">Semua Toko</option>
+                            {% for s in stores %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-[#9aa0a6] mb-1.5"><i class="fa-solid fa-layer-group text-yellow-400 mr-1"></i> Kategori</label>
+                        <select id="hCategory" class="w-full bg-[#131314] border border-[#333538] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#8ab4f8]">
+                            <option value="ALL">Semua Kategori</option>
+                            {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="loadHistorical()" class="px-6 py-2 rounded-full bg-[#8ab4f8] text-[#131314] font-semibold text-xs hover:opacity-90 transition-all">
+                        <i class="fa-solid fa-rotate mr-1"></i> Terapkan Filter
+                    </button>
+                </div>
+                <div id="hError" class="hidden mt-3 text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2"></div>
+            </section>
+
+            <!-- KPI -->
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="gemini-card p-4"><div class="text-xs text-[#9aa0a6] mb-2">Total Unit Terjual</div><div id="hKpiTotal" class="text-2xl font-bold text-white">-</div><div id="hKpiRows" class="text-xs text-[#9aa0a6] mt-1">-</div></div>
+                <div class="gemini-card p-4"><div class="text-xs text-[#9aa0a6] mb-2">Rata-rata Unit / Hari</div><div id="hKpiDaily" class="text-2xl font-bold text-white">-</div><div id="hKpiPeriod" class="text-xs text-[#9aa0a6] mt-1">-</div></div>
+                <div class="gemini-card p-4"><div class="text-xs text-[#9aa0a6] mb-2">Toko / Kategori Teratas</div><div id="hKpiTop" class="text-2xl font-bold text-white">-</div><div id="hKpiTopSub" class="text-xs text-[#9aa0a6] mt-1">-</div></div>
+                <div class="gemini-card p-4"><div class="text-xs text-[#9aa0a6] mb-2">Bulan Puncak</div><div id="hKpiPeak" class="text-2xl font-bold text-white">-</div><div id="hKpiPeakSub" class="text-xs text-[#9aa0a6] mt-1">-</div></div>
+            </section>
+
+            <!-- Tren -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="gemini-card p-5 shadow-xl">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-[#8ab4f8]"></i> Tren Penjualan Bulanan per Kategori</h2>
+                    <p class="text-xs text-[#9aa0a6] mb-3">Total unit terjual per bulan</p>
+                    <div class="h-[300px] relative"><canvas id="hTrendChart"></canvas></div>
+                </div>
+                <div class="gemini-card p-5 shadow-xl">
+                    <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-scale-balanced text-[#c58af9]"></i> Units Sold vs Demand vs Units Ordered</h2>
+                    <p class="text-xs text-[#9aa0a6] mb-3">Perbandingan penjualan, permintaan, dan pemesanan per bulan</p>
+                    <div class="h-[300px] relative"><canvas id="hDemandChart"></canvas></div>
+                </div>
+            </section>
+
+            <!-- Breakdown -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Penjualan per Toko</h3><p class="text-xs text-[#9aa0a6] mb-3">Total unit terjual</p><div class="h-[240px] relative"><canvas id="hStoreChart"></canvas></div></div>
+                <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Komposisi Kategori</h3><p class="text-xs text-[#9aa0a6] mb-3">Porsi unit terjual per kategori</p><div class="h-[240px] relative"><canvas id="hCategoryChart"></canvas></div></div>
+                <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Penjualan per Wilayah</h3><p class="text-xs text-[#9aa0a6] mb-3">Total unit terjual</p><div class="h-[240px] relative"><canvas id="hRegionChart"></canvas></div></div>
+            </section>
+
+            <!-- Cuaca & Musiman -->
+            <section>
+                <h2 class="text-xs font-bold tracking-wider text-[#9aa0a6] uppercase mb-3"><i class="fa-solid fa-temperature-sun text-yellow-400 mr-1"></i> Dampak Cuaca & Musiman</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Rata-rata Unit per Cuaca</h3><p id="hWeatherInsight" class="text-xs text-[#9aa0a6] mb-3">-</p><div class="h-[240px] relative"><canvas id="hWeatherChart"></canvas></div></div>
+                    <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Rata-rata Unit per Musim</h3><p id="hSeasonInsight" class="text-xs text-[#9aa0a6] mb-3">-</p><div class="h-[240px] relative"><canvas id="hSeasonChart"></canvas></div></div>
+                </div>
+            </section>
+
+            <!-- Promosi & Harga -->
+            <section>
+                <h2 class="text-xs font-bold tracking-wider text-[#9aa0a6] uppercase mb-3"><i class="fa-solid fa-tags text-emerald-400 mr-1"></i> Analisis Promosi & Harga</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Promosi vs Tanpa Promosi</h3><p id="hPromoInsight" class="text-xs text-[#9aa0a6] mb-3">-</p><div class="h-[220px] relative"><canvas id="hPromoChart"></canvas></div></div>
+                    <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Level Diskon</h3><p class="text-xs text-[#9aa0a6] mb-3">Rata-rata unit per level diskon</p><div class="h-[220px] relative"><canvas id="hDiscountChart"></canvas></div></div>
+                    <div class="gemini-card p-5"><h3 class="text-sm font-bold text-white mb-1">Selisih Harga vs Kompetitor</h3><p class="text-xs text-[#9aa0a6] mb-3">Harga kita − harga kompetitor</p><div class="h-[220px] relative"><canvas id="hGapChart"></canvas></div></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- VIEW 3: INVENTORY MANAGEMENT -->
+        <main id="view-inventory" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+            <div id="invLoading" class="gemini-card rounded-2xl p-6 text-sm text-[#9aa0a6]">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Memuat analisis persediaan...
+            </div>
+            <div id="invError" class="hidden rounded-2xl p-4 border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm"></div>
+
+            <section id="invDashboard" class="hidden space-y-4">
+
+                <!-- FILTER BAR -->
+                <div class="gemini-card rounded-2xl px-5 py-3.5 flex flex-wrap items-end gap-4">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-[#9aa0a6] uppercase tracking-wider font-semibold">Store</label>
+                        <select id="invFilterStore" onchange="invApplyFilter()"
+                            class="bg-[#282a2c] border border-[#444746] text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#8ab4f8] min-w-[110px]">
+                            <option value="ALL">All Stores</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] text-[#9aa0a6] uppercase tracking-wider font-semibold">Kategori</label>
+                        <select id="invFilterCategory" onchange="invApplyFilter()"
+                            class="bg-[#282a2c] border border-[#444746] text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#8ab4f8] min-w-[120px]">
+                            <option value="ALL">All Categories</option>
+                        </select>
+                    </div>
+                    <button onclick="invResetFilter()"
+                        class="ml-auto text-[11px] text-[#9aa0a6] hover:text-white border border-[#444746] rounded-lg px-3 py-1.5 transition-colors hover:bg-[#282a2c]">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Reset
+                    </button>
+                    <span id="invFilterChip" class="hidden text-[10px] text-[#8ab4f8] bg-[#8ab4f8]/10 border border-[#8ab4f8]/30 rounded-full px-3 py-1"></span>
+                </div>
+
+                <!-- KPI UTAMA -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-[#8ab4f8]">
+                        <p class="text-[11px] text-[#9aa0a6]">Store–Product</p>
+                        <p id="invKpiTotal" class="text-2xl font-bold text-white mt-1">-</p>
+                        <p class="text-[10px] text-[#9aa0a6] mt-1">Kombinasi dianalisis</p>
+                    </div>
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-amber-400">
+                        <p class="text-[11px] text-[#9aa0a6]">Perlu Reorder</p>
+                        <p id="invKpiReorder" class="text-2xl font-bold text-amber-300 mt-1">-</p>
+                        <p class="text-[10px] text-[#9aa0a6] mt-1">Stok ≤ ROP</p>
+                    </div>
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-rose-400">
+                        <p class="text-[11px] text-[#9aa0a6]">Stockout</p>
+                        <p id="invKpiStockout" class="text-2xl font-bold text-rose-300 mt-1">-</p>
+                        <p class="text-[10px] text-[#9aa0a6] mt-1">Stok = 0</p>
+                    </div>
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-purple-400">
+                        <p class="text-[11px] text-[#9aa0a6]">Overstock</p>
+                        <p id="invKpiOverstock" class="text-2xl font-bold text-purple-300 mt-1">-</p>
+                        <p class="text-[10px] text-[#9aa0a6] mt-1">Melebihi maks</p>
+                    </div>
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-emerald-400">
+                        <p class="text-[11px] text-[#9aa0a6]">Avg Fill Rate</p>
+                        <p id="invKpiFill" class="text-2xl font-bold text-emerald-300 mt-1">-</p>
+                        <p class="text-[10px] text-[#9aa0a6] mt-1">Pemenuhan demand</p>
+                    </div>
+                    <div class="gemini-card rounded-2xl p-4 border-l-2 border-sky-400">
+                        <p class="text-[11px] text-[#9aa0a6]">Cost Savings</p>
+                        <p id="invKpiSaving" class="text-2xl font-bold text-[#8ab4f8] mt-1">-</p>
+                        <p id="invKpiSavingPct" class="text-[10px] text-[#9aa0a6] mt-1">Koordinasi supply chain</p>
+                    </div>
+                </div>
+
+                <!-- TAB BAR -->
+                <div class="gemini-card rounded-2xl px-5 pt-0 pb-0">
+                    <div class="flex gap-0 border-b border-[#333538] overflow-x-auto custom-scrollbar">
+                        <button onclick="invSwitchTab('stock')" id="invTab-stock"
+                            class="inv-tab inv-tab-active whitespace-nowrap px-5 py-3.5 text-xs font-semibold transition-all">
+                            <i class="fa-solid fa-warehouse mr-1.5 text-amber-400"></i>Stok, ROP & EOQ
+                        </button>
+                        <button onclick="invSwitchTab('coord')" id="invTab-coord"
+                            class="inv-tab whitespace-nowrap px-5 py-3.5 text-xs font-semibold transition-all">
+                            <i class="fa-solid fa-handshake mr-1.5 text-emerald-400"></i>Koordinasi Supply Chain
+                        </button>
+                        <button onclick="invSwitchTab('hist')" id="invTab-hist"
+                            class="inv-tab whitespace-nowrap px-5 py-3.5 text-xs font-semibold transition-all">
+                            <i class="fa-solid fa-chart-pie mr-1.5 text-[#c58af9]"></i>Performa Historis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 1: MONITORING STOK, ROP, EOQ & SAFETY STOCK -->
+                <div id="invPane-stock" class="inv-pane space-y-4">
+                    <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                        <div class="gemini-card rounded-2xl p-5 xl:col-span-3">
+                            <div class="mb-4">
+                                <h3 class="text-sm font-semibold text-[#8ab4f8] flex items-center gap-2">
+                                    <i class="fa-solid fa-chart-bar text-[#8ab4f8]"></i>
+                                    Monitoring Level Persediaan & Titik Reorder
+                                </h3>
+                                <p class="text-[11px] text-[#9aa0a6] mt-1">Grafik stok saat ini dibandingkan dengan batas ROP dan maksimum persediaan.</p>
+                                <div class="flex flex-wrap gap-4 mt-3 text-[10px] text-[#c4c7c5]">
+                                    <span><i class="fa-solid fa-square text-[#8ab4f8] mr-1"></i> Stok saat ini</span>
+                                    <span><i class="fa-solid fa-square text-[#444746] mr-1"></i> Rentang hingga batas maksimum</span>
+                                    <span><i class="fa-solid fa-grip-lines-vertical text-amber-300 mr-1"></i> Titik ROP</span>
+                                </div>
+                            </div>
+                            <div id="invRopChartWrap" class="relative" style="height:420px"><canvas id="invRopChart"></canvas></div>
+                        </div>
+                        <div class="gemini-card rounded-2xl p-5 xl:col-span-2 min-h-[420px]">
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <h3 class="text-sm font-semibold text-rose-300 flex items-center gap-2">
+                                    <i class="fa-solid fa-bell"></i> Daftar Produk Perlu Restock
+                                </h3>
+                                <span id="invRestockCount" class="text-[10px] rounded-full px-2.5 py-1 bg-rose-500/10 text-rose-300 border border-rose-500/20">0 produk</span>
+                            </div>
+                            <p class="text-[11px] text-[#9aa0a6] mb-3">Produk yang mencapai atau berada di bawah ROP, diurutkan dari stok terendah.</p>
+                            <div id="invAlertBar" class="space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
+                                <p class="text-xs text-[#9aa0a6] py-6 text-center">Tidak ada produk yang perlu direstock.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                            <div class="gemini-card rounded-xl p-3.5 border-l-2 border-[#8ab4f8]">
+                                <p class="text-[11px] text-[#9aa0a6]">Average EOQ (Q*)</p><p id="invKpiAvgEoq" class="text-xl font-bold text-[#8ab4f8] mt-1">-</p><p class="text-[10px] text-[#9aa0a6] mt-0.5">unit per order</p>
+                            </div>
+                            <div class="gemini-card rounded-xl p-3.5 border-l-2 border-purple-400">
+                                <p class="text-[11px] text-[#9aa0a6]">Average Safety Stock</p><p id="invKpiAvgSs" class="text-xl font-bold text-[#c58af9] mt-1">-</p><p class="text-[10px] text-[#9aa0a6] mt-0.5">unit per produk</p>
+                            </div>
+                            <div class="gemini-card rounded-xl p-3.5 border-l-2 border-amber-400">
+                                <p class="text-[11px] text-[#9aa0a6]">Average ROP</p><p id="invKpiAvgRop" class="text-xl font-bold text-amber-300 mt-1">-</p><p class="text-[10px] text-[#9aa0a6] mt-0.5">unit trigger order</p>
+                            </div>
+                        </div>
+                        <div class="gemini-card rounded-2xl p-5 overflow-x-auto mt-4">
+                            <h3 class="text-sm font-semibold text-[#c58af9] mb-1 flex items-center gap-2"><i class="fa-solid fa-table-list"></i> Detail Perhitungan EOQ, Safety Stock & ROP</h3>
+                            <table class="w-full text-xs text-left"><thead id="invCalculationHead"></thead><tbody id="invCalculationBody"></tbody></table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: KOORDINASI SUPPLY CHAIN -->
+                <div id="invPane-coord" class="inv-pane hidden space-y-4">
+                    <!-- Mini KPI -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Total Penghematan</p>
+                            <p id="invKpiCoordSaving" class="text-xl font-bold text-emerald-300 mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">seluruh produk/thn</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Penghematan Rata-rata</p>
+                            <p id="invKpiCoordPct" class="text-xl font-bold text-[#8ab4f8] mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">per store-product</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Avg EOQ + Koordinasi</p>
+                            <p id="invKpiCoordEoq" class="text-xl font-bold text-white mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">unit/order</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Peningkatan Lot</p>
+                            <p id="invKpiCoordLotIncrease" class="text-xl font-bold text-amber-300 mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">vs tanpa koordinasi</p>
+                        </div>
+                    </div>
+
+                    <div class="gemini-card rounded-2xl p-5">
+                        <h3 class="text-sm font-semibold text-[#8ab4f8] mb-1 flex items-center gap-2"><i class="fa-solid fa-scale-balanced"></i> Total Cost: Sebelum vs Sesudah Koordinasi</h3>
+                        <div class="h-[340px]"><canvas id="invCoordCostChart"></canvas></div>
+                    </div>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div class="gemini-card rounded-2xl p-5">
+                            <h3 class="text-sm font-semibold text-emerald-300 mb-1 flex items-center gap-2"><i class="fa-solid fa-boxes-stacked"></i> Perbandingan Ukuran Lot</h3>
+                            <p class="text-[11px] text-[#9aa0a6] mb-3">Ukuran lot pemesanan tanpa dan dengan koordinasi.</p>
+                            <div class="h-[300px]"><canvas id="invCoordLotChart"></canvas></div>
+                        </div>
+                        <div class="gemini-card rounded-2xl p-5">
+                            <h3 class="text-sm font-semibold text-[#c58af9] mb-1 flex items-center gap-2"><i class="fa-solid fa-piggy-bank"></i> Penghematan per Store–Product</h3>
+                            <p class="text-[11px] text-[#9aa0a6] mb-3">Cost savings absolut ($/thn) dari koordinasi.</p>
+                            <div class="h-[300px]"><canvas id="invCoordSavingChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="gemini-card rounded-2xl p-5">
+                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-[#8ab4f8] flex items-center gap-2"><i class="fa-solid fa-table-list"></i> Detail Data Koordinasi Supply Chain</h3>
+                                <p class="text-[11px] text-[#9aa0a6] mt-1">Seluruh data Store–Product. Tabel dapat dicari, diurutkan, dan diunduh sebagai CSV.</p>
+                            </div>
+                            <span id="invCoordCount" class="text-[11px] text-[#9aa0a6] whitespace-nowrap">0 data</span>
+                        </div>
+                        <div id="invCoordTableScroll" class="w-full overflow-x-auto">
+                            <table class="w-full text-xs text-left"><thead id="invCoordHead"></thead><tbody id="invCoordBody"></tbody></table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: PERFORMA HISTORIS -->
+                <div id="invPane-hist" class="inv-pane hidden space-y-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Avg Fill Rate</p>
+                            <p id="invKpiHistFill" class="text-xl font-bold text-emerald-300 mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">target 95%</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Avg ITR</p>
+                            <p id="invKpiHistItr" class="text-xl font-bold text-[#8ab4f8] mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">inventory turnover</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Avg Days of Supply</p>
+                            <p id="invKpiHistDos" class="text-xl font-bold text-amber-300 mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">hari stok bertahan</p>
+                        </div>
+                        <div class="gemini-card rounded-xl p-3.5">
+                            <p class="text-[11px] text-[#9aa0a6]">Total Lost Profit</p>
+                            <p id="invKpiHistLost" class="text-xl font-bold text-rose-300 mt-1">-</p>
+                            <p class="text-[10px] text-[#9aa0a6] mt-0.5">akibat stockout</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div class="gemini-card rounded-2xl p-5">
+                            <h3 class="text-sm font-semibold text-emerald-300 mb-1 flex items-center gap-2"><i class="fa-solid fa-chart-column"></i> Fill Rate per Store–Product</h3>
+                            <p class="text-[11px] text-[#9aa0a6] mb-4">Perbandingan fill rate setiap kombinasi Store–Product dengan target layanan 95%.</p>
+                            <div class="h-[280px]"><canvas id="invHistFillChart"></canvas></div>
+                        </div>
+                        <div class="gemini-card rounded-2xl p-5">
+                            <h3 class="text-sm font-semibold text-rose-300 mb-1 flex items-center gap-2"><i class="fa-solid fa-chart-line"></i> Lost Profit & Stockout Frequency</h3>
+                            <p class="text-[11px] text-[#9aa0a6] mb-4">Bar = lost profit ($/thn). Line = stockout frequency (%).</p>
+                            <div class="h-[280px]"><canvas id="invHistLostChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="gemini-card rounded-2xl p-5 overflow-x-auto">
+                        <h3 class="text-xs font-semibold text-[#c58af9] uppercase tracking-wider mb-3 flex items-center gap-2"><i class="fa-solid fa-table-list"></i> Ringkasan Performa Historis</h3>
+                        <table class="w-full text-xs text-left"><thead id="invHistoricalHead"></thead><tbody id="invHistoricalBody"></tbody></table>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-[#282a2c] py-4 text-center text-xs text-[#9aa0a6] mt-auto">
+            Supply Chain Management Project &bull; Modul Demand Forecasting (Ridge Regression) &copy; 2026
+        </footer>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let timelineChartInstance = null;
+        let categoryChartInstance = null;
+        let rawTableData = [];
+        let isSidebarCollapsed = false;
+        let inventoryLoaded = false;
+        const invCharts = {};
+
+        // Toggle Sidebar 
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            isSidebarCollapsed = !isSidebarCollapsed;
+
+            if (isSidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                if (overlay) overlay.classList.add('hidden');
+            } else {
+                sidebar.classList.remove('collapsed');
+                if (window.innerWidth < 1024 && overlay) {
+                    overlay.classList.remove('hidden');
+                }
+            }
+        }
+
+        function resetToDefaultForecast() {
+            document.getElementById('startDate').value = '2024-02-01';
+            document.getElementById('endDate').value = '2024-07-31';
+            document.getElementById('storeSelect').value = 'ALL';
+            document.getElementById('categorySelect').value = 'ALL';
+            if (isSidebarCollapsed && window.innerWidth >= 1024) {
+            }
+            switchView('forecasting');
+            executeForecast();
+        }
+
+        // Switch Navigation Views
+        function switchView(viewName) {
+            const viewForecasting = document.getElementById('view-forecasting');
+            const viewHistorical = document.getElementById('view-historical');
+            const viewInventory = document.getElementById('view-inventory');
+
+            const btnForecasting = document.getElementById('btn-nav-forecasting');
+            const btnHistorical = document.getElementById('btn-nav-historical');
+            const btnInventory = document.getElementById('btn-nav-inventory');
+
+            const pageTitle = document.getElementById('pageTitle');
+            const pageSubtitle = document.getElementById('pageSubtitle');
+            const topExportBtn = document.getElementById('topExportBtn');
+
+            if (window.innerWidth < 1024 && !isSidebarCollapsed) {
+                toggleSidebar();
+            }
+
+            viewForecasting.classList.add('hidden');
+            viewHistorical.classList.add('hidden');
+            viewInventory.classList.add('hidden');
+
+            const defaultNavClass = 'nav-pill sidebar-tooltip w-full flex items-center gap-3.5 px-4 py-2.5 rounded-full text-xs font-medium text-[#c4c7c5] hover:bg-[#282a2c] hover:text-white transition-colors text-left';
+            const activeNavClass = 'nav-pill sidebar-tooltip w-full flex items-center gap-3.5 px-4 py-2.5 rounded-full text-xs font-semibold bg-[#282a2c] text-white shadow-sm transition-colors text-left ring-1 ring-white/10';
+
+            btnForecasting.className = defaultNavClass;
+            btnHistorical.className = defaultNavClass;
+            btnInventory.className = defaultNavClass;
+
+            if (viewName === 'forecasting') {
+                viewForecasting.classList.remove('hidden');
+                btnForecasting.className = activeNavClass;
+                pageTitle.innerHTML = 'Demand Forecasting Dashboard <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-[#8ab4f8] border border-blue-500/20">Per Kategori per Store</span>';
+                pageSubtitle.textContent = 'Model Ridge Regression SCM • Proyeksi Masa Depan';
+                topExportBtn.classList.remove('hidden');
+            } else if (viewName === 'historical') {
+                viewHistorical.classList.remove('hidden');
+                btnHistorical.className = activeNavClass;
+                pageTitle.innerHTML = 'Visualisasi Data Historis <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Data Aktual</span>';
+                if (!hLoaded) loadHistorical();
+                pageSubtitle.textContent = 'Analisis Tren Riwayat Penjualan, Cuaca, Musim, dan EDA (Jan 2022 - Jan 2024)';
+                topExportBtn.classList.add('hidden');
+            } else if (viewName === 'inventory') {
+                viewInventory.classList.remove('hidden');
+                btnInventory.className = activeNavClass;
+                pageTitle.innerHTML = 'Inventory Management <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">Stock Optimization</span>';
+                pageSubtitle.textContent = 'Historical Performance, EOQ, Safety Stock, ROP, & Buyer–Supplier Coordination';
+                topExportBtn.classList.add('hidden');
+                if (!inventoryLoaded) loadInventory();
+            }
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) return '-';
+            return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(num);
+        }
+
+        // input kalender (YYYY-MM-DD) 
+        const toMonth = (d) => d.slice(0, 7);
+        function monthEndDate(ym) {
+            const [y, m] = ym.split('-').map(Number);
+            const last = new Date(y, m, 0).getDate();
+            return `${ym}-${String(last).padStart(2, '0')}`;
+        }
+
+        function setPreset(start, end) {
+            document.getElementById('startDate').value = start + '-01';
+            document.getElementById('endDate').value = monthEndDate(end);
+            executeForecast();
+        }
+
+        async function executeForecast() {
+            const startRaw = document.getElementById('startDate').value;
+            const endRaw = document.getElementById('endDate').value;
+            const store = document.getElementById('storeSelect').value;
+            const category = document.getElementById('categorySelect').value;
+
+            if (!startRaw || !endRaw) {
+                alert('Silakan pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.');
+                return;
+            }
+
+            if (startRaw > endRaw) {
+                alert('Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.');
+                return;
+            }
+            // model meramal per bulan -> kirim bulan dari tanggal yang dipilih
+            const startDate = toMonth(startRaw);
+            const endDate = toMonth(endRaw);
+
+            const btn = document.getElementById('btnForecast');
+            const icon = document.getElementById('btnIcon');
+            btn.disabled = true;
+            icon.className = 'fa-solid fa-spinner fa-spin';
+
+            try {
+                const response = await fetch('/api/forecast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_date: startDate,
+                        end_date: endDate,
+                        store: store,
+                        category: category
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status !== 'success') {
+                    alert('Gagal memproses peramalan: ' + data.message);
+                    return;
+                }
+
+                renderDashboard(data);
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan saat memanggil API: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-wand-magic-sparkles';
+            }
+        }
+
+        function renderDashboard(apiResponse) {
+            const data = apiResponse.data;
+            const summary = data.summary;
+            rawTableData = data.table_data;
+
+            document.getElementById('kpiTotalForecast').textContent = formatNumber(summary.total_forecast);
+            document.getElementById('kpiMonthCount').textContent = `Periode: ${summary.months_count} Bulan (${apiResponse.params.start_date} s/d ${apiResponse.params.end_date})`;
+            document.getElementById('kpiAvgMonthly').textContent = formatNumber(summary.avg_monthly);
+            document.getElementById('kpiTopCategory').textContent = summary.top_category;
+            document.getElementById('kpiTopStore').textContent = summary.top_store !== '-' ? `Store ${summary.top_store}` : '-';
+
+            document.getElementById('matrixRangeLabel').textContent = `${apiResponse.params.start_date} s/d ${apiResponse.params.end_date}`;
+            renderMatrix(data.store_category_matrix);
+
+            renderTimelineChart(data.chart_timeline);
+            renderCategoryChart(data.chart_category);
+
+            renderTable(rawTableData);
+        }
+
+        function renderMatrix(matrixItems) {
+            const container = document.getElementById('matrixGrid');
+            container.innerHTML = '';
+
+            if (!matrixItems || matrixItems.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center text-[#9aa0a6] py-4">Tidak ada data kombinasi toko & kategori.</div>';
+                return;
+            }
+
+            const categoryIcons = {
+                'Electronics': 'fa-laptop',
+                'Clothing': 'fa-shirt',
+                'Groceries': 'fa-basket-shopping',
+                'Toys': 'fa-gamepad',
+                'Furniture': 'fa-couch'
+            };
+
+            const categoryColors = {
+                'Electronics': 'border-blue-500/30 text-[#8ab4f8] bg-blue-500/10',
+                'Clothing': 'border-purple-500/30 text-[#c58af9] bg-purple-500/10',
+                'Groceries': 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+                'Toys': 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+                'Furniture': 'border-rose-500/30 text-rose-400 bg-rose-500/10'
+            };
+
+            matrixItems.forEach(item => {
+                const icon = categoryIcons[item.category] || 'fa-tag';
+                const colorClass = categoryColors[item.category] || 'border-indigo-500/30 text-indigo-400 bg-indigo-500/10';
+
+                const card = document.createElement('div');
+                card.className = 'p-3.5 rounded-2xl bg-[#131314] border border-[#282a2c] hover:border-[#333538] transition-all flex flex-col justify-between';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1e1f20] text-[#c4c7c5] border border-white/5">
+                            Store ${item.store_id}
+                        </span>
+                        <span class="w-6 h-6 rounded-lg ${colorClass} flex items-center justify-center text-[10px]">
+                            <i class="fa-solid ${icon}"></i>
+                        </span>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-[#c4c7c5] truncate">${item.category}</div>
+                        <div class="text-base font-bold text-white tracking-tight mt-0.5">
+                            ${formatNumber(item.forecast)} <span class="text-[10px] text-[#9aa0a6] font-normal">units</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderTimelineChart(chartData) {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            if (timelineChartInstance) timelineChartInstance.destroy();
+
+            timelineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: chartData.datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#9aa0a6', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1e1f20',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e3e3e3',
+                            borderColor: '#333538',
+                            borderWidth: 1,
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#282a2c' },
+                            ticks: { color: '#9aa0a6', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { color: '#282a2c' },
+                            ticks: { color: '#9aa0a6', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCategoryChart(chartData) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Total Forecast Demand',
+                        data: chartData.data,
+                        backgroundColor: chartData.colors,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e1f20',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e3e3e3',
+                            borderColor: '#333538',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9aa0a6', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { color: '#282a2c' },
+                            ticks: { color: '#9aa0a6', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTable(rows) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const searchTerm = document.getElementById('tableSearch').value.toLowerCase();
+            const filteredRows = rows.filter(r => {
+                if (!searchTerm) return true;
+                return (
+                    r.date.toLowerCase().includes(searchTerm) ||
+                    r.store_id.toLowerCase().includes(searchTerm) ||
+                    r.category.toLowerCase().includes(searchTerm) ||
+                    r.product_id.toLowerCase().includes(searchTerm)
+                );
+            });
+
+            document.getElementById('tableCountLabel').textContent = `Menampilkan ${filteredRows.length} dari ${rows.length} baris forecast`;
+
+            if (filteredRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-[#9aa0a6] font-sans">Tidak ada baris yang sesuai pencarian.</td></tr>';
+                return;
+            }
+
+            filteredRows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#282a2c]/50 transition-colors';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white font-sans">${r.date}</td>
+                    <td class="py-3 px-4 text-[#8ab4f8] font-semibold font-sans">Store ${r.store_id}</td>
+                    <td class="py-3 px-4 font-sans text-[#e3e3e3]">${r.category}</td>
+                    <td class="py-3 px-4 text-[#9aa0a6] font-mono text-[11px]">${r.product_id}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-400 font-mono text-sm">${formatNumber(r.forecast)}</td>
+                    <td class="py-3 px-4 text-center font-sans">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#282a2c] text-[#8ab4f8] border border-white/5">
+                            Ridge (&alpha;=1.0)
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('tableSearch').addEventListener('input', () => {
+            renderTable(rawTableData);
+        });
+
+        function downloadCSV() {
+            const startDate = toMonth(document.getElementById('startDate').value);
+            const endDate = toMonth(document.getElementById('endDate').value);
+            const store = document.getElementById('storeSelect').value;
+            const category = document.getElementById('categorySelect').value;
+
+            const url = `/export-csv?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&store=${encodeURIComponent(store)}&category=${encodeURIComponent(category)}`;
+            window.location.href = url;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            executeForecast();
+        });
+
+        // =====================================================================
+        // INVENTORY MANAGEMENT DASHBOARD
+        // =====================================================================
+        const INV_GRID  = 'rgba(255,255,255,0.07)';
+        const INV_TICK  = '#9aa0a6';
+        const INV_TT    = {backgroundColor:'#1e1f20',titleColor:'#fff',bodyColor:'#e3e3e3',borderColor:'#444746',borderWidth:1,padding:10,cornerRadius:8};
+        const invNum    = (v, d=0) => (!Number.isFinite(Number(v))) ? '-' : Number(v).toLocaleString('id-ID',{maximumFractionDigits:d});
+        const invMoney  = v => (!Number.isFinite(Number(v))) ? '-' : '$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+        const invEsc    = v => String(v??'-').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const INV_YAXIS = {grid:{display:false}, ticks:{color:INV_TICK, font:{size:9}, maxTicksLimit:15}};
+        const INV_XGRID = {grid:{color:INV_GRID}, ticks:{color:INV_TICK, font:{size:10}}};
+
+        let _invRawData = null;
+
+        // Tab switching
+        function invSwitchTab(name) {
+            ['stock','coord','hist'].forEach(t => {
+                document.getElementById('invPane-'+t).classList.add('hidden');
+                document.getElementById('invTab-'+t).classList.remove('inv-tab-active');
+            });
+            document.getElementById('invPane-'+name).classList.remove('hidden');
+            document.getElementById('invTab-'+name).classList.add('inv-tab-active');
+            setTimeout(()=>Object.values(invCharts).forEach(c=>{try{c.resize();}catch(e){}}),60);
+        }
+
+        // Filter helpers 
+        function invApplyFilter() {
+            if (!_invRawData) return;
+            const store = document.getElementById('invFilterStore').value;
+            const cat   = document.getElementById('invFilterCategory').value;
+            const chip  = document.getElementById('invFilterChip');
+            const parts = [];
+            if (store !== 'ALL') parts.push(store);
+            if (cat !== 'ALL')   parts.push(cat);
+            if (parts.length) { chip.textContent = parts.join(' · '); chip.classList.remove('hidden'); }
+            else chip.classList.add('hidden');
+            const filtered = invFilterData(_invRawData, store, cat);
+            invRenderAll(filtered);
+        }
+        function invResetFilter() {
+            document.getElementById('invFilterStore').value    = 'ALL';
+            document.getElementById('invFilterCategory').value = 'ALL';
+            document.getElementById('invFilterChip').classList.add('hidden');
+            if (_invRawData) invRenderAll(invFilterData(_invRawData,'ALL','ALL'));
+        }
+        function invFilterData(data, store, cat) {
+            const filt = arr => arr.filter(r => {
+                const id = (r.StoreProduct_ID || '');
+                const matchStore = store === 'ALL' || id.startsWith(store);
+                const matchCat   = cat   === 'ALL' || id.includes(cat);
+                return matchStore && matchCat;
+            });
+            return {
+                summary:     [],
+                historical:  filt(data.historical  || []),
+                eoq:         filt(data.eoq         || []),
+                coordination:filt(data.coordination|| []),
+                inventory:   filt(data.inventory   || []),
+                forecast:    data.forecast || []
+            };
+        }
+        function invPopulateFilters(data) {
+            const stores = [...new Set((data.inventory||[]).map(r=>(r.StoreProduct_ID||'').split('_')[0]).filter(Boolean))].sort();
+            const cats   = [...new Set((data.inventory||[]).map(r=>r.StoreProduct_ID.split('_')[2]||'').filter(Boolean))].sort();
+            const sel = id => document.getElementById(id);
+            stores.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sel('invFilterStore').appendChild(o); });
+            cats.forEach(c=>{   const o=document.createElement('option'); o.value=c; o.textContent=c; sel('invFilterCategory').appendChild(o); });
+        }
+
+        // Chart helper
+        function invChart(id, config) {
+            const el = document.getElementById(id); if (!el) return;
+            if (invCharts[id]) invCharts[id].destroy();
+            config.options = Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:400}}, config.options||{});
+            invCharts[id] = new Chart(el, config);
+        }
+
+        // Table helper
+        const invTableState = {};
+        function invCsvDownload(filename, rows, cols) {
+            const quote = value => '"' + String(value ?? '').replace(/"/g, '""') + '"';
+            const csv = [cols.map(c=>quote(c.label)).join(','), ...rows.map(r=>cols.map(c=>quote(r[c.key])).join(','))].join('\\r\\n');
+            const blob = new Blob(['\\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+            URL.revokeObjectURL(url);
+        }
+        function invTable(hId, bId, rows, cols) {
+            const th=document.getElementById(hId), tb=document.getElementById(bId);
+            if(!th||!tb) return;
+            const table=tb.closest('table');
+            const scrollWrap = bId === 'invCoordBody' ? document.getElementById('invCoordTableScroll') : null;
+            const card = scrollWrap ? scrollWrap.parentElement : table?.parentElement;
+            if(!table||!card) return;
+            const stateKey=bId;
+            invTableState[stateKey] = {rows:[...rows], cols, query:'', sortKey:null, sortDir:1};
+            let toolbar=document.getElementById(bId+'Toolbar');
+            if(!toolbar){
+                toolbar=document.createElement('div'); toolbar.id=bId+'Toolbar';
+                toolbar.className='w-full min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3';
+                if (scrollWrap) card.insertBefore(toolbar, scrollWrap);
+                else table.parentNode.insertBefore(toolbar,table);
+            }
+            toolbar.innerHTML=`
+                <div class="relative flex-1 max-w-sm">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-[#9aa0a6] text-xs"></i>
+                    <input type="search" id="${bId}Search" placeholder="Cari data tabel..." class="w-full bg-[#131314] border border-[#333538] rounded-full pl-8 pr-4 py-2 text-xs text-white placeholder-[#9aa0a6] focus:outline-none focus:ring-1 focus:ring-[#8ab4f8]">
+                </div>
+                <button type="button" id="${bId}Export" class="px-3 py-2 text-xs font-medium rounded-full bg-[#282a2c] hover:bg-[#333538] text-white border border-white/10"><i class="fa-solid fa-download text-[#8ab4f8] mr-1"></i> Unduh CSV</button>`;
+            document.getElementById(bId+'Search').addEventListener('input',e=>{
+                invTableState[stateKey].query=e.target.value.toLowerCase(); invRenderTable(stateKey,hId,bId);
+            });
+            document.getElementById(bId+'Export').addEventListener('click',()=>{
+                const st=invTableState[stateKey]; const filtered=invGetTableRows(st);
+                invCsvDownload(bId.replace('Body','').toLowerCase()+'.csv',filtered,cols);
+            });
+            invRenderTable(stateKey,hId,bId);
+        }
+        function invGetTableRows(st) {
+            let result=st.rows.filter(row=>!st.query || Object.values(row).some(v=>String(v??'').toLowerCase().includes(st.query)));
+            if(st.sortKey){
+                const key=st.sortKey, dir=st.sortDir;
+                result.sort((a,b)=>{
+                    const av=a[key], bv=b[key], an=Number(av), bn=Number(bv);
+                    if(av!==''&&bv!==''&&Number.isFinite(an)&&Number.isFinite(bn)) return (an-bn)*dir;
+                    return String(av??'').localeCompare(String(bv??''),'id',{numeric:true,sensitivity:'base'})*dir;
+                });
+            }
+            return result;
+        }
+        function invRenderTable(stateKey,hId,bId) {
+            const st=invTableState[stateKey]; if(!st) return;
+            const th=document.getElementById(hId), tb=document.getElementById(bId), cols=st.cols;
+            th.innerHTML='<tr>'+cols.map(c=>`<th class="py-2.5 px-3 text-[10px] uppercase tracking-wider font-semibold text-[#9aa0a6] whitespace-nowrap ${c.r?'text-right':''}"><button type="button" data-sort="${invEsc(c.key)}" class="hover:text-[#8ab4f8] transition-colors">${invEsc(c.label)} <i class="fa-solid fa-sort ml-1 opacity-50"></i></button></th>`).join('')+'</tr>';
+            th.querySelectorAll('[data-sort]').forEach(btn=>btn.addEventListener('click',()=>{
+                const key=btn.dataset.sort;
+                if(st.sortKey===key) st.sortDir*=-1; else {st.sortKey=key;st.sortDir=1;}
+                invRenderTable(stateKey,hId,bId);
+            }));
+            const filtered=invGetTableRows(st);
+            const countEl = bId === 'invCoordBody' ? document.getElementById('invCoordCount') : null;
+            if (countEl) countEl.textContent = `${filtered.length} dari ${st.rows.length} data ditampilkan`;
+            tb.innerHTML=filtered.map(row=>'<tr class="border-t border-[#282a2c] hover:bg-[#282a2c]/50 transition-colors">'+cols.map(c=>{
+                let v=row[c.key], cls='text-[#e3e3e3]';
+                if(c.fmt==='number') v=invNum(v,c.d??0);
+                else if(c.fmt==='money') v=invMoney(v);
+                else if(c.fmt==='moneyLost') {v=invMoney(v);cls='text-rose-300 font-bold';}
+                else if(c.fmt==='pct') v=invNum(v,1)+'%';
+                else if(c.fmt==='status'){
+                    const status=String(v||'-');
+                    const cl=status==='Safe'?'text-emerald-300 bg-emerald-500/10':status==='Stockout'?'text-rose-300 bg-rose-500/10':status==='Need Reorder'?'text-amber-300 bg-amber-500/10':status==='Overstock'?'text-purple-300 bg-purple-500/10':'text-[#9aa0a6] bg-[#282a2c]';
+                    return `<td class="py-2.5 px-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[10px] font-medium ${cl}">${invEsc(status)}</span></td>`;
+                }
+                return `<td class="py-2.5 px-3 whitespace-nowrap ${cls} ${c.r?'text-right':''}">${invEsc(v)}</td>`;
+            }).join('')+'</tr>').join('');
+            if(!filtered.length) tb.innerHTML=`<tr><td colspan="${cols.length}" class="py-6 text-center text-xs text-[#9aa0a6]">Tidak ada data yang sesuai.</td></tr>`;
+        }
+
+        // Load 
+        async function loadInventory() {
+            const ld=document.getElementById('invLoading'),er=document.getElementById('invError'),db=document.getElementById('invDashboard');
+            ld.classList.remove('hidden'); er.classList.add('hidden'); db.classList.add('hidden');
+            try {
+                const res  = await fetch('/api/inventory');
+                const json = await res.json();
+                if (!res.ok || json.status!=='success') throw new Error(json.message||'Gagal mengambil data.');
+                _invRawData = json.data;
+                invPopulateFilters(_invRawData);
+                invRenderAll(invFilterData(_invRawData,'ALL','ALL'));
+                inventoryLoaded = true;
+                db.classList.remove('hidden');
+            } catch(e) { er.textContent='Gagal memuat Inventory: '+e.message; er.classList.remove('hidden'); }
+            finally    { ld.classList.add('hidden'); }
+        }
+
+        function invRenderAll(data) {
+            const s=( data.summary||[])[0]||{};
+            const hist=data.historical||[], eoq=data.eoq||[], coord=data.coordination||[], inv=data.inventory||[];
+
+            // KPI Utama
+            const countStatus = status => inv.filter(r=>r['Inventory Status']===status).length;
+            document.getElementById('invKpiTotal').textContent     = invNum(inv.length);
+            document.getElementById('invKpiReorder').textContent   = invNum(countStatus('Need Reorder'));
+            document.getElementById('invKpiStockout').textContent  = invNum(countStatus('Stockout'));
+            document.getElementById('invKpiOverstock').textContent = invNum(countStatus('Overstock'));
+            document.getElementById('invKpiFill').textContent      = hist.length ? invNum(hist.reduce((a,r)=>a+(Number(r['Fill Rate (%)'])||0),0)/hist.length,1)+'%' : '-';
+            const totSav = coord.reduce((a,r)=>a+(Number(r.Savings_Total)||0),0);
+            document.getElementById('invKpiSaving').textContent    = invMoney(totSav);
+            document.getElementById('invKpiSavingPct').textContent = coord.length ? invNum(coord.reduce((a,r)=>a+(Number(r.Savings_Pct)||0),0)/coord.length,2)+'% penghematan avg' : '-';
+
+            // Alert restock
+            const alertBar = document.getElementById('invAlertBar');
+            const crits = inv.filter(r=>['Stockout','Need Reorder'].includes(r['Inventory Status']))
+                .sort((a,b)=>(Number(a['Current Stock'])||0)-(Number(b['Current Stock'])||0));
+            document.getElementById('invRestockCount').textContent = `${crits.length} produk`;
+            alertBar.innerHTML = crits.length ? crits.map(r=>{
+                const out=r['Inventory Status']==='Stockout';
+                return `<div class="rounded-xl p-3 border ${out?'border-rose-500/30 bg-rose-500/10':'border-amber-500/30 bg-amber-500/10'}">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="text-xs font-semibold ${out?'text-rose-300':'text-amber-300'} break-all">${invEsc(r.StoreProduct_ID)}</p>
+                        <span class="text-[9px] uppercase tracking-wide ${out?'text-rose-300':'text-amber-300'} whitespace-nowrap">${out?'Stockout':'Need Reorder'}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-2 text-[10px] text-[#9aa0a6]">
+                        <span>Stok: <b class="text-white">${invNum(r['Current Stock'])}</b></span>
+                        <span>ROP: <b class="text-white">${invNum(r.Reorder_Point)}</b></span>
+                        <span>Saran order: <b class="text-[#8ab4f8]">${invNum(r['Suggested Order Qty'])} unit</b></span>
+                    </div>
+                </div>`;
+            }).join('') : '<p class="text-xs text-emerald-300 py-8 text-center"><i class="fa-solid fa-circle-check mr-1"></i> Tidak ada produk yang perlu direstock.</p>';
+
+            const avgEoq=eoq.length?eoq.reduce((a,r)=>a+(Number(r.EOQ)||0),0)/eoq.length:0;
+            const avgSs =eoq.length?eoq.reduce((a,r)=>a+(Number(r.SS)||0),0)/eoq.length:0;
+            const avgRop=eoq.length?eoq.reduce((a,r)=>a+(Number(r.Reorder_Point)||0),0)/eoq.length:0;
+            document.getElementById('invKpiAvgEoq').textContent = invNum(avgEoq);
+            document.getElementById('invKpiAvgSs').textContent  = invNum(avgSs);
+            document.getElementById('invKpiAvgRop').textContent = invNum(avgRop);
+
+            const avgCoordEoq=coord.length?coord.reduce((a,r)=>a+(Number(r.EOQ_Coord)||0),0)/coord.length:0;
+            const avgNoCoordEoq=coord.length?coord.reduce((a,r)=>a+(Number(r.EOQ_NoCoord)||0),0)/coord.length:0;
+            const lotPct=avgNoCoordEoq?((avgCoordEoq-avgNoCoordEoq)/avgNoCoordEoq*100):0;
+            document.getElementById('invKpiCoordSaving').textContent   = invMoney(totSav);
+            document.getElementById('invKpiCoordPct').textContent      = coord.length?invNum(coord.reduce((a,r)=>a+(Number(r.Savings_Pct)||0),0)/coord.length,2)+'%':'-';
+            document.getElementById('invKpiCoordEoq').textContent      = invNum(avgCoordEoq);
+            document.getElementById('invKpiCoordLotIncrease').textContent = lotPct?'+'+invNum(lotPct,1)+'%':'-';
+
+            const avgFill=hist.length?hist.reduce((a,r)=>a+(Number(r['Fill Rate (%)'])||0),0)/hist.length:0;
+            const avgItr =hist.length?hist.reduce((a,r)=>a+(Number(r['Inventory Turnover Rate (ITR)'])||0),0)/hist.length:0;
+            const avgDos =hist.length?hist.reduce((a,r)=>a+(Number(r['Inventory Days of Supply'])||0),0)/hist.length:0;
+            const totLost=hist.reduce((a,r)=>a+(Number(r['Annual Lost Profit'])||0),0);
+            document.getElementById('invKpiHistFill').textContent = invNum(avgFill,1)+'%';
+            document.getElementById('invKpiHistItr').textContent  = invNum(avgItr,2)+'×';
+            document.getElementById('invKpiHistDos').textContent  = invNum(avgDos,0)+' hr';
+            document.getElementById('invKpiHistLost').textContent = invMoney(totLost);
+
+            invRenderCharts(hist, eoq, inv, coord);
+
+            const inventoryById = new Map(inv.map(r => [String(r.StoreProduct_ID), r]));
+            const calculationRows = eoq.map(r => ({...r, ...(inventoryById.get(String(r.StoreProduct_ID)) || {})}));
+            invTable('invCalculationHead','invCalculationBody', calculationRows, [
+                {key:'StoreProduct_ID',    label:'Store–Product'},
+                {key:'Current Stock',      label:'Stok Saat Ini', fmt:'number'},
+                {key:'Demand',             label:'Demand/Thn',    fmt:'number'},
+                {key:'EOQ',                label:'EOQ (Q*)',      fmt:'number'},
+                {key:'Freq_Order',         label:'Order/Thn',     fmt:'number', d:1},
+                {key:'Interval_Days',      label:'Interval (hr)', fmt:'number', d:1},
+                {key:'SS',                 label:'Safety Stock',  fmt:'number'},
+                {key:'Reorder_Point',      label:'ROP',           fmt:'number'},
+                {key:'Inventory Status',   label:'Status',        fmt:'status'},
+                {key:'Suggested Order Qty',label:'Saran Order',   fmt:'number'}
+            ]);
+            invTable('invCoordHead','invCoordBody', coord, [
+                {key:'StoreProduct_ID', label:'Store–Product'},
+                {key:'EOQ_NoCoord',     label:'EOQ Tanpa Koordinasi', fmt:'number'},
+                {key:'EOQ_Coord',       label:'EOQ Dengan Koordinasi', fmt:'number'},
+                {key:'TC_NoCoord',      label:'Total Cost Sebelum', fmt:'money'},
+                {key:'TC_Coord',        label:'Total Cost Sesudah', fmt:'money'},
+                {key:'Savings_Buyer',   label:'Savings_Buyer', fmt:'money'},
+                {key:'Savings_Supplier',label:'Savings_Supplier', fmt:'money'},
+                {key:'Savings_Total',   label:'Savings_Total', fmt:'money'},
+                {key:'Savings_Pct',     label:'Penghematan (%)', fmt:'pct'}
+            ]);
+            invTable('invHistoricalHead','invHistoricalBody', hist, [
+                {key:'StoreProduct_ID',              label:'Store–Product'},
+                {key:'Inventory Turnover Rate (ITR)',label:'ITR',           fmt:'number', d:2},
+                {key:'Inventory Days of Supply',     label:'Days of Supply',fmt:'number', d:1},
+                {key:'Fill Rate (%)',                label:'Fill Rate',     fmt:'pct'},
+                {key:'Stockout Frequency (%)',       label:'Stockout Freq', fmt:'pct'},
+                {key:'Annual Lost Profit',           label:'Lost Profit',   fmt:'moneyLost'}
+            ]);
+        }
+
+        // ── Charts ──
+        function invRenderCharts(hist, eoq, inv, coord) {
+            const labels_inv   = inv.map(r=>r.StoreProduct_ID);
+            const labels_eoq   = eoq.map(r=>r.StoreProduct_ID);
+            const labels_coord = coord.map(r=>r.StoreProduct_ID);
+            const labels_hist  = hist.map(r=>r.StoreProduct_ID);
+
+            // Chart 1 – Monitoring Level Persediaan & Titik Reorder
+            const bulletPlugin = {
+                id:'invBulletOverlay',
+                afterDatasetsDraw(chart) {
+                    const {ctx,scales:{x,y}}=chart;
+                    if(!x||!y) return;
+                    chart.data.labels.forEach((_,i)=>{
+                        const row=inv[i]; if(!row) return;
+                        const yPos=y.getPixelForValue(i);
+                        const x0=x.getPixelForValue(0);
+                        const xStock=x.getPixelForValue(Math.max(0,Number(row['Current Stock'])||0));
+                        const xRop=x.getPixelForValue(Math.max(0,Number(row.Reorder_Point)||0));
+                        const color=(Number(row['Current Stock'])||0)<= (Number(row.Reorder_Point)||0) ? '#f28b82' : '#8ab4f8';
+                        ctx.save();
+                        ctx.fillStyle=color;
+                        ctx.fillRect(x0,yPos-6,Math.max(0,xStock-x0),12);
+                        ctx.strokeStyle='#fdd663'; ctx.lineWidth=2;
+                        ctx.beginPath(); ctx.moveTo(xRop,yPos-12); ctx.lineTo(xRop,yPos+12); ctx.stroke();
+                        ctx.restore();
+                    });
+                }
+            };
+            const bulletMax=Math.max(1,...inv.map(r=>Number(r.Max_Inventory_Level)||0),...inv.map(r=>Number(r['Current Stock'])||0),...inv.map(r=>Number(r.Reorder_Point)||0));
+            const bulletHeight=Math.max(320,inv.length*30+80);
+            const wrap=document.getElementById('invRopChartWrap');
+            if(wrap) wrap.style.height=bulletHeight+'px';
+            invChart('invRopChart',{type:'bar',plugins:[bulletPlugin],data:{labels:labels_inv,datasets:[
+                {label:'Rentang hingga Batas Maksimum',data:inv.map(r=>Math.max(Number(r.Max_Inventory_Level)||0,Number(r['Current Stock'])||0)),backgroundColor:'rgba(255,255,255,0.12)',borderRadius:6,barThickness:14}
+            ]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{...INV_TT,callbacks:{label:c=>{
+                const r=inv[c.dataIndex]; return [`Stok saat ini: ${invNum(r['Current Stock'])}`,`ROP: ${invNum(r.Reorder_Point)}`,`Batas maksimum: ${invNum(r.Max_Inventory_Level)}`];
+            }}}},scales:{x:{...INV_XGRID,min:0,max:bulletMax*1.08,title:{display:true,text:'Jumlah unit',color:INV_TICK,font:{size:10}}},y:{...INV_YAXIS,ticks:{color:INV_TICK,font:{size:9},autoSkip:false}}}}});
+
+            // Chart 4 – Total cost
+            invChart('invCoordCostChart',{type:'bar',data:{labels:labels_coord,datasets:[
+                {label:'Tanpa Koordinasi',data:coord.map(r=>r.TC_NoCoord),backgroundColor:'rgba(242,139,130,0.85)',borderRadius:4},
+                {label:'Dengan Koordinasi',data:coord.map(r=>r.TC_Coord),backgroundColor:'rgba(129,201,149,0.85)',borderRadius:4}
+            ]},options:{plugins:{legend:{labels:{color:'#c4c7c5',boxWidth:10}},tooltip:INV_TT},
+            scales:{x:{...INV_XGRID,ticks:{color:INV_TICK,font:{size:8},maxRotation:45}},y:{...INV_XGRID,title:{display:true,text:'Total Cost ($/thn)',color:INV_TICK,font:{size:10}}}}}});
+
+            // Chart 5 – ukuran lot tanpa dan dengan koordinasi
+            invChart('invCoordLotChart',{type:'bar',data:{labels:labels_coord,datasets:[
+                {label:'Tanpa Koordinasi',data:coord.map(r=>r.EOQ_NoCoord),backgroundColor:'rgba(138,180,248,0.88)',borderRadius:4},
+                {label:'Dengan Koordinasi',data:coord.map(r=>r.EOQ_Coord),backgroundColor:'rgba(197,138,249,0.88)',borderRadius:4}
+            ]},options:{plugins:{legend:{labels:{color:'#c4c7c5',boxWidth:10,font:{size:9}}},tooltip:INV_TT},
+            scales:{x:{...INV_XGRID,ticks:{color:INV_TICK,font:{size:8},maxRotation:45}},y:{...INV_XGRID,title:{display:true,text:'Ukuran Lot (unit/order)',color:INV_TICK,font:{size:10}}}}}});
+
+            // Chart 5 – Saving per product
+            invChart('invCoordSavingChart',{type:'bar',data:{labels:labels_coord,datasets:[
+                {label:'Penghematan ($/thn)',data:coord.map(r=>r.Savings_Total),
+                 backgroundColor:coord.map((_,i)=>`hsl(${150+i*8},60%,55%)`),borderRadius:4}
+            ]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{...INV_TT,callbacks:{label:c=>' Hemat: '+invMoney(c.raw)+'/thn'}}},
+            scales:{x:{...INV_XGRID,title:{display:true,text:'Cost Savings ($/thn)',color:INV_TICK,font:{size:10}}},y:INV_YAXIS}}});
+
+            // Chart 6 – Fill rate
+            const fillValues=hist.map(r=>Number(r['Fill Rate (%)'])||0);
+            const fillMinData=Math.min(95,...fillValues), fillMaxData=Math.max(95,...fillValues);
+            const fillPad=Math.max(1.5,(fillMaxData-fillMinData)*0.18);
+            const fillAxisMin=Math.max(0,Math.floor((fillMinData-fillPad)*10)/10);
+            const fillAxisMax=Math.min(100,Math.ceil((fillMaxData+fillPad)*10)/10);
+            const targetLabelPlugin={
+                id:'invFillTargetLabel',
+                afterDatasetsDraw(chart){
+                    const x=chart.scales.x, y=chart.scales.y;
+                    if(!x||!y) return;
+                    const px=x.getPixelForValue(95);
+                    const py=chart.chartArea.top+12;
+                    const ctx=chart.ctx; ctx.save();
+                    ctx.fillStyle='#fdd663'; ctx.font='600 10px Plus Jakarta Sans, sans-serif';
+                    ctx.textAlign='center'; ctx.fillText('Target 95%',px,py);
+                    ctx.restore();
+                }
+            };
+            invChart('invHistFillChart',{type:'bar',plugins:[targetLabelPlugin],data:{labels:labels_hist,datasets:[
+                {label:'Fill Rate (%)',data:fillValues,
+                 backgroundColor:fillValues.map(v=>v>=95?'rgba(129,201,149,0.85)':'rgba(242,139,130,0.85)'),borderRadius:4},
+                {type:'line',label:'Target 95%',data:hist.map(()=>95),borderColor:'#fdd663',borderDash:[14,7],pointRadius:0,borderWidth:2,fill:false}
+            ]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:INV_TT},
+            scales:{x:{min:fillAxisMin,max:fillAxisMax,...INV_XGRID,ticks:{color:INV_TICK,font:{size:9},callback:v=>v+'%'}},y:INV_YAXIS}}});
+
+            // Chart 7 – Lost profit bar + stockout freq line (dual axis)
+            invChart('invHistLostChart',{type:'bar',data:{labels:labels_hist,datasets:[
+                {label:'Lost Profit ($/thn)',data:hist.map(r=>r['Annual Lost Profit']),backgroundColor:'rgba(242,139,130,0.8)',borderRadius:4,yAxisID:'y'},
+                {type:'line',label:'Stockout Freq (%)',data:hist.map(r=>r['Stockout Frequency (%)']),borderColor:'#fdd663',backgroundColor:'rgba(253,214,99,0.1)',fill:true,pointRadius:3,pointBackgroundColor:'#fdd663',tension:0.3,yAxisID:'y1'}
+            ]},options:{plugins:{legend:{labels:{color:'#c4c7c5',boxWidth:10}},tooltip:INV_TT},
+            scales:{
+                x:{...INV_XGRID,ticks:{color:INV_TICK,font:{size:8},maxRotation:45}},
+                y:{...INV_XGRID,position:'left',title:{display:true,text:'Lost Profit ($)',color:INV_TICK,font:{size:10}}},
+                y1:{grid:{display:false},ticks:{color:'#fdd663',font:{size:9}},position:'right',title:{display:true,text:'Stockout (%)',color:'#fdd663',font:{size:10}}}
+            }}});
+        }
+
+        // =====================================================================
+        // VISUALISASI HISTORIS
+        // =====================================================================
+        const hCharts = {};
+        const H_COLORS = ['#8ab4f8', '#c58af9', '#81c995', '#fdd663', '#f28b82', '#78d9ec'];
+        const H_GRID = 'rgba(255,255,255,0.06)';
+        const H_TICK = '#9aa0a6';
+        let hLoaded = false;
+
+        function hMk(id, config) {
+            if (hCharts[id]) hCharts[id].destroy();
+            const el = document.getElementById(id);
+            if (!el) return;
+            config.options = Object.assign({responsive: true, maintainAspectRatio: false}, config.options || {});
+            hCharts[id] = new Chart(el, config);
+        }
+        function hAxes() {
+            return {
+                x: {grid: {color: H_GRID}, ticks: {color: H_TICK, font: {size: 10}}},
+                y: {grid: {color: H_GRID}, ticks: {color: H_TICK, font: {size: 10}}}
+            };
+        }
+        const hLegend = {labels: {color: '#c4c7c5', boxWidth: 10, font: {size: 10}}};
+        const hFmt = (v, d = 1) => (v === null || v === undefined) ? '-' : Number(v).toLocaleString('id-ID', {maximumFractionDigits: d});
+        const hArgMax = a => a.indexOf(Math.max(...a));
+        const hArgMin = a => a.indexOf(Math.min(...a));
+
+        async function loadHistorical() {
+            const errBox = document.getElementById('hError');
+            errBox.classList.add('hidden');
+            try {
+                const res = await fetch('/api/historical', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        start_date: document.getElementById('hStart').value,
+                        end_date: document.getElementById('hEnd').value,
+                        store: document.getElementById('hStore').value,
+                        category: document.getElementById('hCategory').value
+                    })
+                });
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message || 'Gagal memuat data historis');
+                renderHistorical(json.data);
+                hLoaded = true;
+            } catch (e) {
+                errBox.textContent = e.message;
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function renderHistorical(d) {
+            hRenderKpi(d);
+            hRenderTrend(d.trend);
+            hRenderDemand(d.sold_vs_demand);
+            hRenderBreakdown(d.breakdown);
+            hRenderWeather(d.weather_season);
+            hRenderPromo(d.promo_price);
+        }
+
+        function hRenderKpi(d) {
+            const k = d.kpi;
+            document.getElementById('hKpiTotal').textContent = hFmt(k.total_units, 0);
+            document.getElementById('hKpiRows').textContent = hFmt(k.n_rows, 0) + ' baris transaksi';
+            document.getElementById('hKpiDaily').textContent = hFmt(k.avg_daily_units, 0);
+            document.getElementById('hKpiPeriod').textContent = d.period.start + ' s/d ' + d.period.end;
+            document.getElementById('hKpiTop').textContent = k.top_store + ' / ' + k.top_category;
+            document.getElementById('hKpiTopSub').textContent = hFmt(k.top_store_units, 0) + ' / ' + hFmt(k.top_category_units, 0) + ' unit';
+            document.getElementById('hKpiPeak').textContent = k.peak_month;
+            document.getElementById('hKpiPeakSub').textContent = hFmt(k.peak_month_units, 0) + ' unit';
+        }
+
+        function hRenderTrend(t) {
+            const ds = Object.keys(t.series).map((c, i) => ({
+                label: c, data: t.series[c], borderColor: H_COLORS[i % H_COLORS.length],
+                backgroundColor: H_COLORS[i % H_COLORS.length], tension: 0.3, pointRadius: 2, borderWidth: 2
+            }));
+            hMk('hTrendChart', {
+                type: 'line', data: {labels: t.labels, datasets: ds},
+                options: {interaction: {mode: 'index', intersect: false}, plugins: {legend: hLegend}, scales: hAxes()}
+            });
+        }
+
+        function hRenderDemand(s) {
+            hMk('hDemandChart', {
+                type: 'line',
+                data: {labels: s.labels, datasets: [
+                    {label: 'Units Sold', data: s.units_sold, borderColor: '#8ab4f8', backgroundColor: '#8ab4f8', tension: 0.3, pointRadius: 2, borderWidth: 2},
+                    {label: 'Demand', data: s.demand, borderColor: '#81c995', backgroundColor: '#81c995', tension: 0.3, pointRadius: 2, borderWidth: 2},
+                    {label: 'Units Ordered', data: s.units_ordered, borderColor: '#fdd663', backgroundColor: '#fdd663', tension: 0.3, pointRadius: 2, borderWidth: 2, borderDash: [5, 4]}]},
+                options: {interaction: {mode: 'index', intersect: false}, plugins: {legend: hLegend}, scales: hAxes()}
+            });
+        }
+
+        function hBar(id, labels, values, colors, opts) {
+            hMk(id, {
+                type: 'bar',
+                data: {labels, datasets: [{data: values, backgroundColor: colors, borderRadius: 6}]},
+                options: Object.assign({plugins: {legend: {display: false}}, scales: hAxes()}, opts || {})
+            });
+        }
+
+        function hRenderBreakdown(b) {
+            hBar('hStoreChart', b.store.labels, b.store.values, '#8ab4f8');
+            hBar('hRegionChart', b.region.labels, b.region.values, '#c58af9');
+            hMk('hCategoryChart', {
+                type: 'doughnut',
+                data: {labels: b.category.labels, datasets: [{data: b.category.values, backgroundColor: H_COLORS, borderColor: '#1e1f20', borderWidth: 2}]},
+                options: {cutout: '60%', plugins: {legend: Object.assign({position: 'right'}, hLegend)}}
+            });
+        }
+
+        function hRenderWeather(w) {
+            hBar('hWeatherChart', w.weather.labels, w.weather.mean, ['#fdd663', '#9aa0a6', '#8ab4f8', '#78d9ec']);
+            hBar('hSeasonChart', w.season.labels, w.season.mean, ['#81c995', '#fdd663', '#f28b82', '#8ab4f8']);
+            const wi = hArgMax(w.weather.mean), wl = hArgMin(w.weather.mean);
+            document.getElementById('hWeatherInsight').textContent =
+                `${w.weather.labels[wi]} tertinggi (${hFmt(w.weather.mean[wi])}), ${w.weather.labels[wl]} terendah (${hFmt(w.weather.mean[wl])}).`;
+            const si = hArgMax(w.season.mean), sl = hArgMin(w.season.mean);
+            document.getElementById('hSeasonInsight').textContent =
+                `Musim ${w.season.labels[si]} tertinggi (${hFmt(w.season.mean[si])}), ${w.season.labels[sl]} terendah (${hFmt(w.season.mean[sl])}).`;
+        }
+
+        function hRenderPromo(p) {
+            hBar('hPromoChart', ['Tanpa Promosi', 'Dengan Promosi'], [p.promo.tanpa_promosi, p.promo.dengan_promosi], ['#9aa0a6', '#81c995']);
+            document.getElementById('hPromoInsight').textContent = p.promo.lift_pct === null ? '-' :
+                `Promosi ${p.promo.lift_pct >= 0 ? 'menaikkan' : 'menurunkan'} rata-rata penjualan ${hFmt(Math.abs(p.promo.lift_pct))}%.`;
+            hBar('hDiscountChart', p.discount.labels, p.discount.mean, '#c58af9');
+            hBar('hGapChart', p.price_gap.labels, p.price_gap.mean, '#8ab4f8');
+        }
+
+        ['hStart', 'hEnd'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('click', () => { try { el.showPicker(); } catch (e) {} });
+        });
+
+        ['startDate', 'endDate'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('click', () => { try { el.showPicker(); } catch (e) {} });
+        });
+    </script>
+</body>
+</html>
